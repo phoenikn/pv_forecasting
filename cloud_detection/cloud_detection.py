@@ -18,7 +18,8 @@ CROP_SIDE = 364
 SEC_CROP = (CROP_SIDE, CROP_SIDE)
 
 BRBG_THRESHOLD = 2.5
-BRBG_THRESHOLD_MINMAX = 0.5
+BRBG_THRESHOLD_MINMAX = 0.35
+BR_DIFF_THRESHOLD = 10
 
 
 class SkyImage:
@@ -55,6 +56,17 @@ class SkyImage:
         plus_value = np.vectorize(lambda x: 255 if x + value >= 255 else x + value)
         return plus_value(self._image)
 
+    def img_resize(self, size):
+        return self._image.resize(size)
+
+    def crop_to_square(self):
+        img = Image.fromarray(self._image.astype(np.uint8))
+        img = img.crop(INSCRIBED_SQUARE)
+        return img
+
+    def get_sun_center(self):
+        return self.sun_center
+
     def show_original(self):
         image_original = Image.open(self._image_original).convert(self._mode)
         plt.imshow(image_original)
@@ -86,85 +98,88 @@ class SkyImage:
         target_min, target_max = target.min(), target.max()
         return (target - target_min) / (target_max - target_min)
 
-    def brbg_ratio(self):
-        red, green, blue = self.split_to_rgb()
-        br_ratio = blue / red
-        bg_ratio = blue / green
-        return br_ratio + bg_ratio
+    """The channel analysis part is below"""
 
-    def minmax_brbg_ratio(self):
-        return self.min_max(self.brbg_ratio())
+    def image_process(self, mode: str, normalize: bool = False, threshold: bool = True, show: bool = False):
+        processor = ImageChannelProcess(self.split_to_rgb(), mode, normalize, threshold)
+        if show:
+            processor.show_image()
+        return processor.get_feature()
 
-    def show_minmax_brbg(self):
-        brbg = self.minmax_brbg_ratio()
-        plt.imshow(brbg * 255, cmap="gray_r", vmax=255, vmin=0)
-        plt.title("brbg")
+    def save_processed(self, directory, mode: str, normalize: bool = False, threshold: bool = True):
+        plt.imsave(directory, self.image_process(mode, normalize, threshold) * 255, cmap="Greys")
+
+    """BRBG ratio part: b/r + b/g"""
+
+    # def kmeans(self, processed_img=None, image_size=IMG_SIZE):
+    #     if processed_img is None:
+    #         processed_img = self.minmax_brbg_ratio()
+    #     reshape = processed_img.reshape(processed_img.shape[0] * processed_img.shape[1], 1)
+    #     kmeans = KMeans(n_clusters=3).fit(reshape)
+    #     clusters = kmeans.labels_.reshape(image_size)
+    #     clusters_show = clusters * (255 / 3)
+    #     im_cluster = Image.fromarray(clusters_show)
+    #     plt.imshow(im_cluster)
+    #     plt.show()
+
+
+class ImageChannelProcess:
+    BRBG = "brbg"
+    BR_DIFF = "br_diff"
+
+    def __init__(self, rgb_value, mode: str, normalize: bool = False, threshold: bool = True):
+        self.red, self.green, self.blue = rgb_value
+        self.mode = mode
+        self.threshold = 0
+        self.color_feature = self.calculate_by_mode(mode)
+        self.normalize = normalize
+        self.set_threshold(mode)
+        if self.normalize:
+            self.minmax()
+        if threshold:
+            self.threshold_filter()
+
+    def get_feature(self):
+        return self.color_feature
+
+    def calculate_by_mode(self, mode):
+        if mode == self.BRBG:
+            br_ratio = self.blue / self.red
+            bg_ratio = self.blue / self.green
+            return br_ratio + bg_ratio
+        elif mode == self.BR_DIFF:
+            return self.blue - self.red
+        else:
+            raise Exception("Not a known mode")
+
+    def set_threshold(self, mode):
+        if mode == self.BRBG:
+            if self.normalize:
+                self.threshold = BRBG_THRESHOLD_MINMAX
+            else:
+                self.threshold = BRBG_THRESHOLD
+        elif mode == self.BR_DIFF:
+            self.threshold = BR_DIFF_THRESHOLD
+
+    def minmax(self, inplace=True):
+        target = self.color_feature
+        target_min, target_max = target.min(), target.max()
+        result = (target - target_min) / (target_max - target_min)
+        if inplace:
+            self.color_feature = result
+        return result
+
+    def threshold_filter(self, inplace=True):
+        matrix_filter = np.vectorize(lambda x: 1 if x >= self.threshold else 0)
+        filtered = matrix_filter(self.color_feature)
+        if inplace:
+            self.color_feature = filtered
+        return filtered
+
+    def show_image(self):
+        plt.imshow(self.color_feature, cmap="gray", vmax=1, vmin=0)
+        plt.title(self.mode)
         plt.show()
-
-    def save_brbg(self, name):
-        brbg = self.minmax_brbg_ratio()
-        brbg *= 255
-        plt.imsave(name, brbg, cmap="Greys")
-
-    def threshold_on_brbg(self):
-        brbg = self.brbg_ratio()
-        threshold = np.vectorize(lambda x: 1 if x >= BRBG_THRESHOLD else 0)
-        return threshold(brbg)
-
-    def threshold_on_brbg_minmax(self):
-        brbg = self.minmax_brbg_ratio()
-        threshold = np.vectorize(lambda x: 1 if x >= BRBG_THRESHOLD_MINMAX else 0)
-        return threshold(brbg)
-
-    def show_threshold(self):
-        threshold_brbg = self.threshold_on_brbg() * 255
-        plt.imshow(threshold_brbg, cmap="gray_r", vmax=255, vmin=0)
-        plt.title("threshold on brbg")
-        plt.show()
-
-    def show_threshold_minmax(self):
-        threshold_brbg = self.threshold_on_brbg_minmax() * 255
-        plt.imshow(threshold_brbg, cmap="gray_r", vmax=255, vmin=0)
-        plt.title("threshold on brbg with minmax")
-        plt.show()
-
-    def save_threshold_brbg(self, name):
-        plt.imsave(name, self.threshold_on_brbg() * 255, cmap="Greys")
-
-    def blue_minus_red(self):
-        red, green, blue = self.split_to_rgb()
-        return blue - red
-
-    def minmax_b_minus_r(self):
-        return self.min_max(self.blue_minus_red())
-
-    def show_minmax_b_minus_r(self):
-        b_m_r = self.minmax_b_minus_r()
-        plt.imshow(b_m_r * 255, cmap="gray_r", vmax=255, vmin=0)
-        plt.title("bmr")
-        plt.show()
-
-    def img_resize(self, size):
-        return self._image.resize(size)
-
-    def kmeans(self, processed_img=None, image_size=IMG_SIZE):
-        if processed_img is None:
-            processed_img = self.minmax_brbg_ratio()
-        reshape = processed_img.reshape(processed_img.shape[0] * processed_img.shape[1], 1)
-        kmeans = KMeans(n_clusters=3).fit(reshape)
-        clusters = kmeans.labels_.reshape(image_size)
-        clusters_show = clusters * (255 / 3)
-        im_cluster = Image.fromarray(clusters_show)
-        plt.imshow(im_cluster)
-        plt.show()
-
-    def crop_to_square(self):
-        img = Image.fromarray(self._image.astype(np.uint8))
-        img = img.crop(INSCRIBED_SQUARE)
-        return img
-
-    def get_sun_center(self):
-        return self.sun_center
 
 
 if __name__ == "__main__":
@@ -186,13 +201,14 @@ if __name__ == "__main__":
 
     start = time.time()
     image1 = SkyImage(motion_test_2)
-    # image1.show_brighter()
-    # image1.show_minmax_brbg()
-    image1.show_threshold()
-    # image1.save_threshold_brbg("../img1.jpg")
+    image1.image_process(ImageChannelProcess.BRBG, show=True)
+    # image1.show_minmax_b_minus_r()
+    # image1.threshold_on_br_diff()
     # image1.show_threshold_minmax()
+    # image1.save_threshold_brbg("../img1.jpg")
+    # image1.get_image().save("../cropped2.jpg")
     end = time.time()
-    print(end-start)
+    print(end - start)
     # plt.hist(image1.brbg_ratio().reshape(-1), bins=40)
     # plt.show()
     # np.savetxt("../brbg.csv", image1.brbg_ratio(), delimiter=",")
@@ -202,5 +218,3 @@ if __name__ == "__main__":
 
     # image2 = SkyImage(motion_test_4)
     # image2.save_threshold_brbg("../img2.jpg")
-
-

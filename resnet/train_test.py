@@ -11,7 +11,7 @@ import math
 from custom_res50 import resnet50
 from custom_resnet101 import resnet101
 
-BATCH_SIZE = 16
+BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 EPOCH = 200
 
@@ -22,12 +22,10 @@ def main():
         transforms.Resize((224, 224)),
 
     ])
-    # transform_normalize = transforms.Normalize([6.3861e-05, 3.1319e-01, 3.3415e-01, 3.0482e-01],
-    #                                            [4.9268e-04, 4.6379e-01, 1.5182e+00, 9.3921e-01])
-    # transform_normalize = transforms.Normalize([0, 0, 3.3415e-01, 3.0482e-01],
-    #                                            [1, 1, 1.5182e+00, 9.3921e-01])
-    transform_normalize = transforms.Normalize([6.3932e-05, 4.9000e-02, 8.3891e-02],
+    transform_normalize = transforms.Normalize([6.3932e-05, 4.9000e-02, 8.3891e-02],  # without mean the velocities
                                                [4.9296e-04, 9.4700e-01, 5.7754e-01])
+    # transform_normalize = transforms.Normalize([6.3932e-05, 4.8070e-02, 7.8432e-02],  # With mean the velocities
+    #                                            [4.9296e-04, 7.7191e-01, 4.3708e-01])
 
     index_dir = "../index/combined_ordinary_cliff_10min.csv"
     ordinary = "../extracted_10min_before_cliff"
@@ -78,9 +76,6 @@ def main():
 
                 outputs = net(inputs)
                 loss = criterion(outputs, labels.unsqueeze(1))
-                # print(outputs, i, loss.item())
-                # if i == 5:
-                #     raise Exception()
                 loss.backward()
                 optimizer.step()
 
@@ -95,38 +90,32 @@ def main():
         net.eval()
 
     print("Device is:", device)
-    total = 0
-    correct = 0
-    train_total = 0
-    train_correct = 0
 
     # predict_result = torch.tensor([]).to(device)
 
     with torch.no_grad():
-        for data in test_loader:
-            inputs, labels = data[0].to(device), data[1].to(device)
-            inputs = inputs.float()
-            outputs = net(inputs)
-            predict = (outputs > 0).type(torch.uint8).squeeze()
-            total += labels.size(0)
-            correct += (predict == labels).sum().item()
+        train_accuracy = test_model(net, train_loader, device)
+        test_accuracy = test_model(net, test_loader, device)
 
-            # predict_result = torch.cat((predict_result, predict))
-            # print("predicted:", predict)
-            # print("labels:", labels)
-
-        for data in train_loader:
-            inputs, labels = data[0].to(device), data[1].to(device)
-            inputs = inputs.float()
-            outputs = net(inputs)
-            predict = (outputs > 0).type(torch.uint8).squeeze()
-            train_total += labels.size(0)
-            train_correct += (predict == labels).sum().item()
-
-    print("Training accuracy: ", 100 * train_correct / train_total)
-    print("Test accuracy: ", 100 * correct / total)
+    print("Training accuracy: ", train_accuracy)
+    print("Test accuracy: ", test_accuracy)
 
     # torch.save(predict_result, "predict_result.pt")
+
+
+def test_model(model, data_loader, device):
+    total = 0
+    correct = 0
+
+    for data in data_loader:
+        inputs, labels = data[0].to(device), data[1].to(device)
+        inputs = inputs.float()
+        outputs = model(inputs)
+        predict = (outputs > 0).type(torch.uint8).squeeze()
+        total += labels.size(0)
+        correct += (predict == labels).sum().item()
+
+    return 100 * correct / total
 
 
 if __name__ == "__main__":

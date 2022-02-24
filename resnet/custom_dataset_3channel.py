@@ -11,6 +11,7 @@ from custom_dataset import PvImageFeatureDataset
 class PvImage3ChannelFeatureDataset(PvImageFeatureDataset):
 
     def __getitem__(self, index):
+        mean = False
         time = self.index_df["second"][index]
         label = self.index_df["label"][index]
 
@@ -23,10 +24,15 @@ class PvImage3ChannelFeatureDataset(PvImageFeatureDataset):
 
         feature_zip = np.load(os.path.join(feature_folder, time + ".npz"))
         stack = torch.empty([0, 224, 224])
-        sun_matrix, cloud, velocity1, velocity2 = feature_zip
-        features = [feature_zip[sun_matrix],
-                    np.multiply(feature_zip[cloud], feature_zip[velocity1]),
-                    np.multiply(feature_zip[cloud], feature_zip[velocity2])]
+        sun_matrix, cloud, velocity1, velocity2 = feature_zip.values()
+
+        if mean:
+            velocity1 = np.full(velocity1.shape, velocity1.mean())
+            velocity2 = np.full(velocity2.shape, velocity2.mean())
+
+        features = [sun_matrix,
+                    np.multiply(cloud, velocity1),
+                    np.multiply(cloud, velocity2)]
 
         if self.transform is not None:
             for feature in features:

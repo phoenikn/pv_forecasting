@@ -21,8 +21,8 @@ class PivDetector:
     def __init__(self, image1_dir: str, image2_dir: str):
         self.image1 = cd.SkyImage(image1_dir)
         self.image2 = cd.SkyImage(image2_dir)
-        self.cloud_1 = (1 - self.image1.threshold_on_brbg()) * 255
-        self.cloud_2 = (1 - self.image2.threshold_on_brbg()) * 255
+        self.cloud_1 = (1 - self.image1.image_process(cd.ImageChannelProcess.BRBG)) * 255
+        self.cloud_2 = (1 - self.image2.image_process(cd.ImageChannelProcess.BRBG)) * 255
         # fig, ax = plt.subplots(1, 2, figsize=(12, 10))
         # ax[0].imshow(self.cloud_1, cmap=plt.cm.gray)
         # ax[1].imshow(self.cloud_2, cmap=plt.cm.gray)
@@ -76,7 +76,7 @@ class PivDetector:
         return self.cloud_2
 
     def get_cloud_bi(self):
-        return 1 - self.image2.threshold_on_brbg()
+        return 1 - self.image2.image_process(cd.ImageChannelProcess.BRBG)
 
     def get_sun_matrix(self):
         radius = round(80 * 512 / 1551)
@@ -103,6 +103,7 @@ if __name__ == "__main__":
 
     piv = PivDetector(motion_test_1, motion_test_2)
     velocity1, velocity2 = piv.piv()
-    cloud = piv.get_cloud_bi()
-    piv.get_sun_matrix()
+    # cloud = piv.get_cloud_bi()
+    # plt.imshow(piv.get_sun_matrix(), cmap="gray")
+    # plt.show()
     # print(cloud.shape, velocity1.shape, velocity2.shape)

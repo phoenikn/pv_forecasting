@@ -35,9 +35,10 @@ def extract_from_csv(csv_dir: str):
 
 
 if __name__ == "__main__":
-    # motion_test_1 = '2018-07-04_12-08-40'
-    # motion_test_2 = '2018-07-04_12-08-30'
+    motion_test_1 = '2018-07-04_12-08-40'
+    motion_test_2 = '2018-07-04_12-08-30'
+    print(extract_one_image_pair(motion_test_1, motion_test_2))
     # extract_from_csv("../index/1min_before_cliff.csv")
-    extract_from_csv("../index/10min_before_cliff.csv")
+    # extract_from_csv("../index/10min_before_cliff.csv")
     # a = np.load("../extracted_cliff/2018-07-01_08-15-00.npz")
     # print(a["cloud"])
