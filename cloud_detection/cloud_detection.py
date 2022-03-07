@@ -48,6 +48,9 @@ class SkyImage:
     def get_image(self):
         return self._image
 
+    def get_image_gray(self):
+        return self._image.convert("L")
+
     def handle_zero_value(self, value: int = 1):
         plus_value = np.vectorize(lambda x: x + value if x == 0 else x)
         return plus_value(self._image)
@@ -81,7 +84,7 @@ class SkyImage:
         plt.show()
 
     def show_gray(self):
-        plt.imshow(self._image, cmap="gray")
+        plt.imshow(self.get_image_gray(), cmap="gray")
         plt.show()
 
     def split_to_rgb(self, image: Image = None):
@@ -197,15 +200,17 @@ if __name__ == "__main__":
     edge_clear = "../sky_image/2018-07-04/2018-07-04_15-18-00.jpg"
     edge_cloudy = "../sky_image/2018-07-04/2018-07-04_08-51-20.jpg"
     very_sink = "../sky_image/2018-07-09/2018-07-09_13-35-00.jpg"
-    changeable = '../sky_image/2018-07-01/2018-07-01_08-15-00.jpg'
+    changeable = '../sky_image/2018-07-04/2018-07-04_08-05-10.jpg'
 
     start = time.time()
-    image1 = SkyImage(motion_test_2)
+    image1 = SkyImage(motion_test_1)
     image1.image_process(ImageChannelProcess.BRBG, show=True)
+    image1.show_gray()
+    image1.show_original()
     # image1.show_minmax_b_minus_r()
     # image1.threshold_on_br_diff()
     # image1.show_threshold_minmax()
-    # image1.save_threshold_brbg("../img1.jpg")
+    # image1.save_processed("../img1.jpg", mode=ImageChannelProcess.BRBG)
     # image1.get_image().save("../cropped2.jpg")
     end = time.time()
     print(end - start)

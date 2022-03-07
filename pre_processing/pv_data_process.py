@@ -161,9 +161,9 @@ if __name__ == "__main__":
     # data_all_with_zero.save_data_no_value()
     # image_index_all.save_img_has_value(data_all_with_zero.select_non_zero_time_duplicate())
     # data_has_img_and_value = NormPvData(DATA_IMG_VAL)
-    data_img_val_july = NormPvData(DATA_IMG_VAL_FILES["august"])
+    data_img_val_july = NormPvData(DATA_IMG_VAL_FILES["july"])
     # data_img_val_aug = NormPvData(DATA_IMG_VAL_FILES["august"])
-    data_img_val_july.plot_one_day(8, 3)
+    data_img_val_july.plot_one_day(7, 3)
     # for day in range(1, 16):
     #     data_img_val_july.plot_one_day(7, day)
     # data_img_val_july.plot_short_series(690000, 691000)

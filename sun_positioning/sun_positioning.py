@@ -116,7 +116,7 @@ class SunPositionDraw(SunPositionCalculator):
         super(SunPositionDraw, self).__init__(date_time)
         self.image = Image.open(image_dir)
         self.image = self.image.crop(CROP_SIZE)
-        self.draw = ImageDraw.Draw(self.image)
+        self.draw = ImageDraw.Draw(self.image, "RGBA")
         self._width, self._height = self.image.size
         self._center_x = self._width / 2
         self._center_y = self._height / 2
@@ -154,6 +154,11 @@ class SunPositionDraw(SunPositionCalculator):
         right_down = (sun_x + radius, sun_y + radius)
         points = [left_up, right_down]
         self.draw.ellipse(points, fill=color)
+        # Cover the glare by shadow circles
+        # self.draw.ellipse([(sun_x - 2*radius, sun_y - 2*radius), (sun_x + 2*radius, sun_y + 2*radius)],
+        #                   fill=(0, 0, 10, 50))
+        # self.draw.ellipse([(sun_x - 3*radius, sun_y - 3*radius), (sun_x + 3*radius, sun_y + 3*radius)],
+        #                   fill=(0, 0, 10, 100))
         # self.image.show()
         return self.image
 

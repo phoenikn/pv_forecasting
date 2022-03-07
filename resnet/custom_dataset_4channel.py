@@ -1,15 +1,13 @@
 import os
 import torch
 import torch.utils.data
-import torchvision.transforms as transforms
-import pandas as pd
 import numpy as np
 
 from custom_dataset import PvImageFeatureDataset
 
 
-class PvImage3ChannelFeatureDataset(PvImageFeatureDataset):
-    """The three layers are: sun, cloud v1, cloud v2"""
+class PvImage4ChannelFeatureDataset(PvImageFeatureDataset):
+    """The four layers are: sun, cloud v1, cloud v2, gray image"""
 
     def __getitem__(self, index):
         mean = False
@@ -25,7 +23,7 @@ class PvImage3ChannelFeatureDataset(PvImageFeatureDataset):
 
         feature_zip = np.load(os.path.join(feature_folder, time + ".npz"))
         stack = torch.empty([0, 224, 224])
-        sun_matrix, cloud, velocity1, velocity2 = feature_zip.values()
+        sun_matrix, cloud, velocity1, velocity2, gray_img = feature_zip.values()
 
         if mean:
             velocity1 = np.full(velocity1.shape, velocity1.mean())
@@ -33,13 +31,14 @@ class PvImage3ChannelFeatureDataset(PvImageFeatureDataset):
 
         features = [sun_matrix,
                     np.multiply(cloud, velocity1),
-                    np.multiply(cloud, velocity2)]
+                    np.multiply(cloud, velocity2),
+                    gray_img]
 
         if self.transform is not None:
             for feature in features:
                 r = self.transform(feature)
                 stack = torch.cat((stack, r), 0)
-                if stack.size()[0] > 3:
+                if stack.size()[0] > 4:
                     raise Exception("More feature than expected")
         else:
             raise Exception("No transformer")

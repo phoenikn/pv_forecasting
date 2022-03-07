@@ -21,8 +21,8 @@ class PivDetector:
     def __init__(self, image1_dir: str, image2_dir: str):
         self.image1 = cd.SkyImage(image1_dir)
         self.image2 = cd.SkyImage(image2_dir)
-        self.cloud_1 = (1 - self.image1.image_process(cd.ImageChannelProcess.BRBG)) * 255
-        self.cloud_2 = (1 - self.image2.image_process(cd.ImageChannelProcess.BRBG)) * 255
+        self.cloud_1 = np.asarray(self.image1.get_image_gray())
+        self.cloud_2 = np.asarray(self.image2.get_image_gray())
         # fig, ax = plt.subplots(1, 2, figsize=(12, 10))
         # ax[0].imshow(self.cloud_1, cmap=plt.cm.gray)
         # ax[1].imshow(self.cloud_2, cmap=plt.cm.gray)
@@ -78,6 +78,9 @@ class PivDetector:
     def get_cloud_bi(self):
         return 1 - self.image2.image_process(cd.ImageChannelProcess.BRBG)
 
+    def get_image_gray(self):
+        return np.asarray(self.image2.get_image_gray())
+
     def get_sun_matrix(self):
         radius = round(80 * 512 / 1551)
         img_size = self.get_cloud_bi().shape
@@ -100,9 +103,11 @@ if __name__ == "__main__":
     motion_test_4 = '../sky_image/2018-07-12/2018-07-12_13-18-10.jpg'
     motion_test_5 = '../sky_image/2018-07-04/2018-07-04_11-56-30.jpg'
     motion_test_6 = '../sky_image/2018-07-04/2018-07-04_11-56-40.jpg'
+    motion_test_7 = '../sky_image/2018-07-04/2018-07-04_08-05-40.jpg'
+    motion_test_8 = '../sky_image/2018-07-04/2018-07-04_08-05-50.jpg'
 
     piv = PivDetector(motion_test_1, motion_test_2)
-    velocity1, velocity2 = piv.piv()
+    piv.piv()
     # cloud = piv.get_cloud_bi()
     # plt.imshow(piv.get_sun_matrix(), cmap="gray")
     # plt.show()

@@ -7,6 +7,7 @@ import numpy as np
 
 
 class PvImageFeatureDataset(torch.utils.data.Dataset):
+    """The four layers are: sun, cloud, v1, v2"""
 
     def __init__(self, index_path, ordinary_folder, cliff_folder, transform=None, transform_extra=None):
         self.index_df = pd.read_csv(index_path)
