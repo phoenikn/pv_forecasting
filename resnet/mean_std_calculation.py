@@ -4,6 +4,7 @@ from custom_dataset import PvImageFeatureDataset
 from custom_dataset_3channel import PvImage3ChannelFeatureDataset
 from custom_dataset_4channel import PvImage4ChannelFeatureDataset
 from custom_dataset_3image_8stack import PvImage8ChannelFeatureDataset
+from custom_dataset_two_grayscale import PvImage2ChannelFeatureDataset
 
 import torch
 import torch.nn as nn
@@ -24,7 +25,7 @@ def calculate():
         transforms.Resize((224, 224))
     ])
 
-    dataset = PvImage8ChannelFeatureDataset(index_dir, ordinary, cliff, transform=transform)
+    dataset = PvImage2ChannelFeatureDataset(index_dir, ordinary, cliff, transform=transform)
 
     loader = torch.utils.data.DataLoader(dataset, batch_size=len(dataset), shuffle=True)
 
