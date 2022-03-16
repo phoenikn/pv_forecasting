@@ -1,3 +1,4 @@
+import os
 import time
 
 import pandas as pd
@@ -5,6 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 from tools.util import get_path_from_datetime
+from cloud_detection.cloud_detection import SkyImage
 from motion_detection import piv
 
 
@@ -22,6 +24,11 @@ def extract_one_image_pair(index_one, index_two):
     # print(sun_matrix.shape, cloud.shape, velocity1.shape, velocity2.shape)
 
     return sun_matrix, cloud, velocity1, velocity2, gray_img
+
+def extract_gray_arr(datetime):
+    path = get_path_from_datetime(datetime)
+    image = SkyImage(path)
+    return np.asarray(image.get_image_gray())
 
 
 def extract_three_image(index_one, index_two, index_three):
@@ -59,11 +66,23 @@ def extract_from_csv_three(csv_dir: str):
     print(time.time() - start)
 
 
+def extract_n_gray_arr(csv_dir: str, data_folder: str):
+    csv_index = pd.read_csv(csv_dir)
+    if not os.path.exists(data_folder):
+        os.makedirs(data_folder)
+    for index, row in csv_index.iterrows():
+        gray_img_dict = {"gray_img{}".format(i): extract_gray_arr(datetime) for i, datetime in enumerate(row[:-1], 1)}
+        data_path = os.path.join(data_folder, row[-2] + ".npz")
+        np.savez(data_path, **gray_img_dict)
+        print((index + 1) * 100 / csv_index.shape[0], "%")
+
+
 if __name__ == "__main__":
     motion_test_1 = '2018-07-04_12-08-40'
     motion_test_2 = '2018-07-04_12-08-30'
     # print(extract_one_image_pair(motion_test_1, motion_test_2))
-    extract_from_csv_three("../index/cliff_time_points_three.csv")
+    # extract_n_gray_arr("../index/cliff_time_points_three_numeric.csv")
     # extract_from_csv("../index/10min_before_cliff.csv")
-    # a = np.load("../extracted_cliff/2018-07-01_08-15-00.npz")
-    # print(a["cloud"])
+    # a = np.load("../extracted_data/test/2018-07-01_08-15-00.npz")
+    # plt.imshow(a["gray_img1"], cmap="gray")
+    # plt.show()

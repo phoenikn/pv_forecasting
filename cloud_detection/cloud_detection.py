@@ -180,7 +180,7 @@ class ImageChannelProcess:
         return filtered
 
     def show_image(self):
-        plt.imshow(self.color_feature, cmap="gray", vmax=1, vmin=0)
+        plt.imshow(self.color_feature, cmap="gray_r")
         plt.title(self.mode)
         plt.show()
 
@@ -204,9 +204,10 @@ if __name__ == "__main__":
 
     start = time.time()
     image1 = SkyImage(motion_test_1)
-    image1.image_process(ImageChannelProcess.BRBG, show=True)
-    image1.show_gray()
-    image1.show_original()
+    print(image1.get_image_gray().size)
+    # image1.image_process(ImageChannelProcess.BRBG, show=True)
+    # image1.show_gray()
+    # image1.show_original()
     # image1.show_minmax_b_minus_r()
     # image1.threshold_on_br_diff()
     # image1.show_threshold_minmax()

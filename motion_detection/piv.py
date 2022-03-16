@@ -107,7 +107,8 @@ if __name__ == "__main__":
     motion_test_8 = '../sky_image/2018-07-04/2018-07-04_08-05-50.jpg'
 
     piv = PivDetector(motion_test_1, motion_test_2)
-    piv.piv()
+    plt.imshow(piv.get_image_gray(), cmap="gray")
+    plt.show()
     # cloud = piv.get_cloud_bi()
     # plt.imshow(piv.get_sun_matrix(), cmap="gray")
     # plt.show()

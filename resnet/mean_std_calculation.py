@@ -32,10 +32,9 @@ def calculate():
     data = next(iter(loader))
     mean = torch.mean(data[0], dim=[0, 2, 3])
     std = torch.std(data[0], dim=[0, 2, 3])
-    # mean = data[0].mean()
-    # std = data[0].std()
-    print(mean)
-    print(std)
+
+    print(mean.tolist())
+    print(std.tolist())
 
 
 # def get_mean_std(loader):
