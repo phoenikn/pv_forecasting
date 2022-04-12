@@ -25,6 +25,7 @@ def extract_one_image_pair(index_one, index_two):
 
     return sun_matrix, cloud, velocity1, velocity2, gray_img
 
+
 def extract_gray_arr(datetime):
     path = get_path_from_datetime(datetime)
     image = SkyImage(path)

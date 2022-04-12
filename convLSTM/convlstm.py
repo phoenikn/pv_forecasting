@@ -196,12 +196,13 @@ class ConvLSTMOut(nn.Module):
         super(ConvLSTMOut, self).__init__()
         self.lstm = ConvLSTM(**lstm_arg)
         lstm_out_channel = self.lstm.hidden_dim[0]
-        self.conv = nn.Conv2d(in_channels=time_step * lstm_out_channel, out_channels=1, kernel_size=(3, 3))
-        self.fc1 = nn.Linear(131044, 100)
-        self.fc2 = nn.Linear(100, 1)
+        self.conv = nn.Conv2d(in_channels=time_step * lstm_out_channel, out_channels=1, kernel_size=(5, 5))
+        self.fc1 = nn.Linear(129600, 1000)
+        self.fc2 = nn.Linear(1000, 1)
 
     def forward(self, input_tensor):
         out, hidden = self.lstm(input_tensor)
+        # Get the last hidden state
         x = out[0]
         x = x.flatten(1, 2)
         x = self.conv(x)

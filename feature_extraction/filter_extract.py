@@ -17,8 +17,8 @@ FILTER_ARGS = {
 }
 
 INDEX_FOLDER = "../index"
-INDEX_NAME = "test"
-DATA_FOLDER = "../extracted_data/test"
+INDEX_NAME = "decreased_data"
+DATA_FOLDER = "../extracted_data/decreased"
 
 
 def generate_data(filter_args: dict, index_folder: str, index_name: str, data_folder: str):

@@ -1,5 +1,7 @@
 import os
+import sys
 import time
+from os.path import join as path_join
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,51 +11,51 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.transforms as transforms
 
-import convlstm as cl
-from nn_tool.custom_dataset import PvImageFeatureDataset
+from vit import ViT, TimeVIT
+from nn_tool.raw_img_dataset import RawSkyImageDataset
 from nn_tool import mean_std_calculator
 from nn_tool.path_by_os import get_path
 
+if os.name == "nt":
+    ABSOLUTE_FILE_DIR = "C:/Users/s4544852/Desktop/gatton PV data/Data for CSIRO/2020"
+    ABSOLUTE_IMG_DIR_1 = "C:/Users/s4544852/Desktop/gatton PV data/Gatton 1/2020"
+    ABSOLUTE_IMG_DIR_2 = "C:/Users/s4544852/Desktop/gatton PV data/Gatton 2/2020"
+    ABSOLUTE_INDEX_DIR = "C:/Users/s4544852/Desktop/gatton PV data/index_2020"
+else:
+    ABSOLUTE_FILE_DIR = "C:/Users/s4544852/Desktop/gatton PV data/Data for CSIRO/2020"
+    ABSOLUTE_IMG_DIR_1 = "/scratch/itee/uqsxu13/2020_data/2020_gatton_1"
+    ABSOLUTE_IMG_DIR_2 = "/scratch/itee/uqsxu13/2020_data/2020_gatton_2"
+    ABSOLUTE_INDEX_DIR = "/scratch/itee/uqsxu13/2020_data/2020_index"
+
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
-INPUT_TENSOR_AMOUNT = 8
-EPOCH = 150
-INPUT_LEN = 6
+EPOCH = 10
 
-# INDEX_FOLDER = "../index"
 
 DATASET_ARG = {
-    "index_path": get_path("test.csv"),
-    "file_folder": get_path("test"),
-    "channels": 6,
-    "tensor_size": (364, 364),
-    "select_feature": None
-}
-
-LSTM_ARG = {
-    "input_dim": 1,
-    "hidden_dim": [4, 4],
-    "kernel_size": (3, 3),
-    "num_layers": 2,
-    "batch_first": True,
-    "bias": True,
-    "return_all_layers": False
+    "index_path": path_join(ABSOLUTE_INDEX_DIR, "data_2020_interval.csv"),
+    "images_folder": ABSOLUTE_IMG_DIR_1,
+    "interval": 2,
 }
 
 
 def implement():
-    model = cl.ConvLSTMOut(INPUT_LEN, LSTM_ARG)
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
 
-    dataset = PvImageFeatureDataset(**DATASET_ARG, transform=transform)
+    # model = ViT(
+    #     image_size=256,
+    #     patch_size=32,
+    #     num_classes=1,
+    #     dim=1024,
+    #     depth=4,
+    #     heads=4,
+    #     mlp_dim=2048,
+    #     channels=18,
+    #     dropout=0.1,
+    #     emb_dropout=0.1
+    # )
+    model = TimeVIT()
 
-    mean, std = mean_std_calculator.calculate(dataset)
-
-    transform_norm = transforms.Normalize(mean, std)
-
-    dataset = PvImageFeatureDataset(**DATASET_ARG, transform=transform, transform_extra=transform_norm)
+    dataset = RawSkyImageDataset(**DATASET_ARG)
 
     all_data_size = len(dataset)
     train_size = int(0.6 * all_data_size)
@@ -74,7 +76,7 @@ def implement():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    if not os.path.exists("convlstm.pth"):
+    if not os.path.exists("VIT_original.pth"):
 
         records = pd.DataFrame(data={"epoch": [], "train_loss": [], "val_loss": []})
         print("Start training!")
@@ -84,13 +86,14 @@ def implement():
             model.train()
             running_train_loss = 0.0
             for i, data in enumerate(train_loader, 1):
-                inputs, labels = data[0].to(device), data[1].to(device)
+                inputs, labels, historical = [element.to(device) for element in data]
                 labels = labels.float()
                 inputs = inputs.float()
+                historical = historical.float()
 
                 optimizer.zero_grad()
 
-                outputs = model(inputs)
+                outputs = model(inputs, historical)
                 train_loss = criterion(outputs, labels.unsqueeze(1))
                 running_train_loss += train_loss.item()
                 train_loss.backward()
@@ -100,10 +103,11 @@ def implement():
             model.eval()
             running_val_loss = 0.0
             for i, data in enumerate(validation_loader, 1):
-                inputs, labels = data[0].to(device), data[1].to(device)
+                inputs, labels, historical = [element.to(device) for element in data]
                 labels = labels.float()
                 inputs = inputs.float()
-                outputs = model(inputs)
+                historical = historical.float()
+                outputs = model(inputs, historical)
                 val_loss = criterion(outputs, labels.unsqueeze(1))
                 running_val_loss += val_loss.item()
             avg_val_loss = running_val_loss / i
@@ -111,23 +115,23 @@ def implement():
             print("Epoch: {} / {}".format(epoch + 1, EPOCH))
             print("Average train loss: ", avg_train_loss)
             print("Average validation loss: ", avg_val_loss)
+            torch.save(model.state_dict(), "TimeVIT_epoch{}.pth".format(epoch + 1))
 
             records = records.append({"epoch": epoch + 1, "train_loss": avg_train_loss, "val_loss": avg_val_loss},
                                      ignore_index=True)
 
-        records.to_csv("training_records_{}epochs_8stack_numeric.csv".format(EPOCH), index=False)
-        torch.save(model.state_dict(), "convlstm.pth")
+        records.to_csv("training_records_{}epochs_vit.csv".format(EPOCH), index=False)
+        torch.save(model.state_dict(), "VIT_original.pth")
         print("Finish!")
     else:
         print("There is existed model, start validation.")
-        model.load_state_dict(torch.load("convlstm.pth", map_location=device))
+        model.load_state_dict(torch.load("VIT_original.pth", map_location=device))
         model.eval()
 
     print("Device is:", device)
 
     with torch.no_grad():
-        if os.name == "nt":
-            val_model_numeric(model, test_loader, device)
+        val_model_numeric(model, test_loader, device)
 
 
 def val_model_numeric(model, data_loader, device):
@@ -135,18 +139,20 @@ def val_model_numeric(model, data_loader, device):
     ape_total = 0
     for i, data in enumerate(data_loader, 1):
         start = time.time()
-        inputs, labels = data[0].to(device), data[1].to(device)
+        inputs, labels, historical = [element.to(device) for element in data]
         inputs = inputs.float()
-        outputs = model(inputs)
+        historical = historical.float()
+        outputs = model(inputs, historical)
 
         ape_total += ape_calculation(outputs.squeeze(), labels)
 
-        if i == 1:
+        if i == 1 and os.name == "nt":
             print("Spend time for 16 prediction: ", time.time() - start)
             plt.plot(x, outputs.squeeze().numpy(), x, labels.numpy())
             plt.legend(["pred", "real data"])
             plt.title("Prediction of the first batch")
             plt.show()
+            raise Exception()
 
         # print(outputs.squeeze())
         # print(labels)
@@ -155,9 +161,9 @@ def val_model_numeric(model, data_loader, device):
 
 
 def ape_calculation(pred, actual):
-    pred, actual = np.array(pred), np.array(actual)
-    return np.sum(np.abs((actual - pred) / actual))
+    return torch.sum(torch.abs((actual - pred) / actual)).item()
 
 
 if __name__ == "__main__":
+    torch.manual_seed(0)
     implement()

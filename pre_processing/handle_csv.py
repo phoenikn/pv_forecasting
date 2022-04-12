@@ -34,7 +34,7 @@ def select_data_without_img(img_names_dir_, formatted_data_dir_, data_dir_):
     data_has_img.to_csv(os.path.join(data_dir_, "data_has_no_img.csv"), index=False)
 
 
-def extract_img_names(img_directory_, other_data_dir_):
+def extract_img_names(img_directory_, other_data_dir_, name: str = "img_names.csv"):
     img_names_ = pd.Series(dtype="string", name="img_name")
     for folder_name in os.listdir(img_directory_):
         if os.path.isdir(os.path.join(img_directory_, folder_name)):
@@ -45,7 +45,8 @@ def extract_img_names(img_directory_, other_data_dir_):
     img_names_ = img_names_.apply(lambda x: x[:-4])
     img_names_ = img_names_.to_frame()
     img_names_.columns = ["img_name"]
-    img_names_.to_csv(os.path.join(other_data_dir_, "img_names.csv"), index=False)
+    print(img_names_[~img_names_["img_name"].str.endswith("0")])
+    # img_names_.to_csv(os.path.join(other_data_dir_, name), index=False)
 
 
 def round_img_name(img_names_dir_, img_dir_, data_dir_):
@@ -57,11 +58,13 @@ def round_img_name(img_names_dir_, img_dir_, data_dir_):
     :return:
     """
     img_names_ = pd.read_csv(img_names_dir_)["img_name"]
+    print(img_names_ is None)
     count = 0
     for index, value in img_names_.items():
         date_str, time_str = value.split("_")
         time = [int(num) for num in time_str.split("-")]
         if time[2] % 10 != 0:
+            print(value, "first if")
             time[2] = round(time[2] / 10) * 10
             if time[2] == 60:
                 time[2] = 50
@@ -73,7 +76,7 @@ def round_img_name(img_names_dir_, img_dir_, data_dir_):
             os.rename(os.path.join(img_dir_, date_str, file_name), os.path.join(img_dir_, date_str, file_new_name))
             count += 1
             print(count)
-    extract_img_names(img_dir_, data_dir_)
+    # extract_img_names(img_dir_, data_dir_)
 
 
 def img_data_check(img_names_dir_):
@@ -132,23 +135,23 @@ def img_data_check(img_names_dir_):
     plt.show()
 
 
-def csv_time_format_change(raw_data_dir_, data_dir_):
+def csv_time_format_change(raw_data_dir_, data_folder_dir_, name="right_time_data.csv"):
     def time_format_change(date_time: str) -> str:
         date_time_obj = datetime.strptime(date_time, "%d/%m/%Y %I:%M:%S %p")
         return date_time_obj.strftime("%Y-%m-%d_%H-%M-%S")
 
     raw_data = pd.read_csv(raw_data_dir_)
     raw_data["DateTime"] = raw_data["DateTime"].apply(time_format_change)
-    raw_data.to_csv(os.path.join(data_dir_, "right_time_data.csv"), index=False)
+    raw_data.to_csv(os.path.join(data_folder_dir_, name), index=False)
 
 
 if __name__ == "__main__":
-    data_directory = "../pv_data"
-    img_directory = "../sky_image"
-    raw_data_dir = "../pv_data/raw_all_data.csv"
-    img_names_dir = "../index/img_names.csv"
-    formatted_data_dir = "../pv_data/right_time_data.csv"
-    other_data_dir = "../index"
+    # data_directory = "../pv_data"
+    # img_directory = "../sky_image"
+    # raw_data_dir = "../pv_data/raw_all_data.csv"
+    # img_names_dir = "../index/img_names.csv"
+    # formatted_data_dir = "../pv_data/right_time_data.csv"
+    # other_data_dir = "../index"
     # concat_pv_csv(data_directory)
     # csv_time_format_change(raw_data_dir, data_directory)
     # select_data_with_img(img_directory, formatted_data_dir, data_directory)
@@ -156,6 +159,14 @@ if __name__ == "__main__":
     # round_img_name(img_names_dir, img_directory, data_directory)
     # select_data_without_img(img_names_dir, formatted_data_dir, data_directory)
 
-    img_data_check(img_names_dir)
+    # from pv_data_process import ABSOLUTE_FILE_DIR, ABSOLUTE_IMG_DIR_1, ABSOLUTE_INDEX_DIR
+    #
+    # extract_img_names(ABSOLUTE_IMG_DIR_1, ABSOLUTE_INDEX_DIR, name="img_names_2020.csv")
+
+    ABSOLUTE_INDEX_DIR = "/scratch/itee/uqsxu13/2020_data/2020_index/img_names.csv"
+    ABSOLUTE_IMG_DIR_1 = "/scratch/itee/uqsxu13/2020_data/2020_gatton_1"
+
+    extract_img_names(ABSOLUTE_IMG_DIR_1, "/scratch/itee/uqsxu13/2020_data/2020_index/")
+    # round_img_name(ABSOLUTE_INDEX_DIR, ABSOLUTE_IMG_DIR_1, None)
 
     # select_data_with_img(img_names_dir, formatted_data_dir, data_directory)

@@ -204,7 +204,8 @@ if __name__ == "__main__":
 
     start = time.time()
     image1 = SkyImage(motion_test_1)
-    print(image1.get_image_gray().size)
+    plt.imshow(image1.get_image_gray(), cmap="gray")
+    plt.show()
     # image1.image_process(ImageChannelProcess.BRBG, show=True)
     # image1.show_gray()
     # image1.show_original()

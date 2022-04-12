@@ -22,7 +22,7 @@ from custom_resnet101 import resnet101
 
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
-INPUT_TENSOR_AMOUNT = 8
+INPUT_TENSOR_AMOUNT = 2
 EPOCH = 100
 
 
@@ -39,13 +39,13 @@ def main():
     # transform_normalize =\
     #     transforms.Normalize([6.3932e-05, 2.6518e-02, 7.3403e-04, 1.3235e-01], # without mean the velocities
     #                                            [0.0005, 0.4769, 0.2787, 0.1106])  # and with gray images
-    transform_normalize = \
-        transforms.Normalize([6.3935e-05, 2.5340e-02, -1.1304e-03, 1.3301e-01, 6.3839e-05,
-                              -1.7348e-02, -2.3021e-02, 1.3414e-01],  # three images, 8stack
-                             [4.9297e-04, 4.8047e-01, 2.7523e-01, 1.1130e-01, 4.9260e-04, 5.2269e-01,
-                              4.1887e-01, 1.1561e-01])
-    # transform_normalize =\
-    #     transforms.Normalize([1.3301e-01, 1.3414e-01], [1.1130e-01, 1.1561e-01])  # only two gray images
+    # transform_normalize = \
+    #     transforms.Normalize([6.3935e-05, 2.5340e-02, -1.1304e-03, 1.3301e-01, 6.3839e-05,
+    #                           -1.7348e-02, -2.3021e-02, 1.3414e-01],  # three images, 8stack
+    #                          [4.9297e-04, 4.8047e-01, 2.7523e-01, 1.1130e-01, 4.9260e-04, 5.2269e-01,
+    #                           4.1887e-01, 1.1561e-01])
+    transform_normalize =\
+        transforms.Normalize([1.3301e-01, 1.3414e-01], [1.1130e-01, 1.1561e-01])  # only two gray images
 
     index_dir = "../index/combined_ordinary_cliff_10min_three.csv"
     index_numeric_dir = "../index/cliff_time_points_three_numeric.csv"
@@ -76,7 +76,7 @@ def main():
         ordinary_three = ordinary_linux_three
         cliff_three = cliff_linux_three
 
-    dataset = PvImage8ChannelNumericDataset(index_numeric_dir, ordinary_three, cliff_three, transform=transform,
+    dataset = PvImage2ChannelNumericDataset(index_numeric_dir, ordinary_three, cliff_three, transform=transform,
                                             transform_extra=transform_normalize)
 
     all_data_size = len(dataset)
@@ -173,16 +173,29 @@ def main():
 
 def val_model_numeric(model, data_loader, device):
     x = range(BATCH_SIZE)
-    for data in data_loader:
+    ape_total = 0
+    for i, data in enumerate(data_loader, 1):
         inputs, labels = data[0].to(device), data[1].to(device)
         inputs = inputs.float()
         outputs = model(inputs)
-        plt.plot(x, np.absolute(outputs.squeeze().numpy() - labels.numpy()) * (-1), x, labels.numpy())
-        plt.legend(["difference", "real data"])
-        plt.show()
+
+        ape_total += ape_calculation(outputs.squeeze(), labels)
+
+        if i == 1:
+            plt.plot(x, outputs.squeeze().numpy(), x, labels.numpy())
+            plt.legend(["pred", "real data"])
+            plt.title("Prediction of the first batch")
+            plt.show()
+
         # print(outputs.squeeze())
         # print(labels)
-        break
+
+    print("MAPE of the test set is:", (ape_total / len(data_loader.dataset)) * 100, "%")
+
+
+def ape_calculation(pred, actual):
+    pred, actual = np.array(pred), np.array(actual)
+    return np.sum(np.abs((actual - pred) / actual))
 
 
 def val_model_on_test_set(model, data_loader, device):
