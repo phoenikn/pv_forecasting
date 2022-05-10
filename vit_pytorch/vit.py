@@ -1,3 +1,5 @@
+import time
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -157,39 +159,49 @@ class ViT(nn.Module):
 
 
 class TimeVIT(nn.Module):
-    def __init__(self, num_img=6):
+    def __init__(self, num_min=5):
         super().__init__()
-        self.num_img = num_img
+        self.num_img = num_min * 6
+        self.num_min = num_min
         self.vit = ViT(
             image_size=256,
             patch_size=32,
-            num_classes=256,
+            num_classes=1024,
             dim=1024,
-            depth=2,
-            heads=4,
+            depth=4,
+            heads=8,
             mlp_dim=2048,
             channels=3,
             dropout=0.1,
-            emb_dropout=0.1
+            emb_dropout=0.0
         )
-        self.time_transformer = Transformer(256, 2, 4, 64, 100)
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model=256, nhead=8, batch_first=True)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=4)
+        # self.time_transformer = Transformer(256, 2, 4, 64, 100)
+        self.decoder_layer = nn.TransformerDecoderLayer(d_model=256, nhead=8, batch_first=True)
+        self.transformer_decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=4)
+        self.transformer = nn.Transformer(1024, 8, 4, 4, 2048, batch_first=True, dropout=0.0)
         self.layer_norm = nn.LayerNorm(256)
-        self.ff1 = nn.Linear(256, 64)
-        self.ff2 = nn.Linear(64, 1)
-        self.combine = nn.Linear(2, 1)
+        self.fc1 = nn.Linear(1024, 256)
+        self.fc2 = nn.Linear(256, 1)
+        # self.decoder = nn.GRU(1, 30, batch_first=True)
 
-    def forward(self, x, historical):
+    def forward(self, x, dec_input, historical):
         x = rearrange(x, "b i c h w -> (b i) c h w")
         x = self.vit(x)
+        # split to batch * image_num * feature_dim
         x = rearrange(x, "(b i) d -> b i d", i=self.num_img)
-        x = self.time_transformer(x)
-        # x = rearrange(x, "b i d -> b (i d)")
-        x = x.mean(dim=1)
-        x = self.layer_norm(x)
-        x = self.ff1(x)
+        x = self.transformer(x, dec_input)
+        x = self.fc1(x)
         x = F.relu(x)
-        x = self.ff2(x)
-        historical = historical[:, None]
-        x = torch.cat([x, historical], 1)
+        x = self.fc2(x)
+        x = rearrange(x, "b m h -> b (m h)")
+        # split to batch * minutes * sample_num in one min * feature_dim
+        # x = rearrange(x, "b (m s) h -> b m s h", m=self.num_min)
+        # x = self.transformer_encoder(x)
+        # # x = self.transformer_decoder(dec_input, x)
+        # x = self.transformer(x, dec_input)
+        # x = F.relu(x)
+        # x = self.fc1(x)
 
-        return self.combine(x)
+        return x

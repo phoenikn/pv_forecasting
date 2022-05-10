@@ -24,7 +24,9 @@ DATASET_ARG = {
 }
 
 
-def plot_pred(start=0, end=1000):
+def plot_pred(start=0, end=1000, dec_out=False):
+    start = real_index(start)
+    end = real_index(end)
     if os.path.exists("VIT_original.pth"):
         with torch.no_grad():
             # model = ViT(
@@ -45,27 +47,50 @@ def plot_pred(start=0, end=1000):
             data_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
             model.load_state_dict(torch.load("VIT_original.pth", map_location=device))
             model.eval()
-            x = range(start, end)
+            x = range(start * 5, end * 5)
             output_array = numpy.array([])
             labels_array = numpy.array([])
+            dec_array = numpy.array([])
             for i in range(start, end):
                 data = data_loader.dataset.__getitem__(i)
-                inputs, labels = data[0], data[1]
+                inputs, labels, dec_input, historical = data
                 inputs = inputs.float()
-                outputs = model(torch.unsqueeze(inputs, 0))
-                output_array = np.append(output_array, outputs.squeeze())
+                historical = np.array(historical)
+                dec_input = np.array(dec_input)
+                dec_array = np.append(dec_array, dec_input)
+                historical = torch.from_numpy(historical).float()
+                dec_input = torch.from_numpy(dec_input).float()
+                dec_input = torch.cat((dec_input[:, None], torch.zeros(dec_input.size() + (1023,)).to(device)), 1)
+                outputs = model(torch.unsqueeze(inputs, 0), torch.unsqueeze(dec_input, 0),
+                                torch.unsqueeze(historical, 0))
+                output_array = np.concatenate((output_array, outputs.squeeze().numpy()))
                 labels_array = np.append(labels_array, labels)
                 # if len(output_array) >= end:
                 #     output_array = output_array[start: end]
                 #     labels_array = labels_array[start: end]
                 #     break
 
-            plt.plot(x, output_array, x, labels_array)
-            plt.legend(["pred", "real data"])
-            plt.title("90 minutes in 24-01-2020")
-            # plt.title("Prediction from {} to {}".format(start, end))
-            plt.show()
+            if dec_out:
+                plt.plot(x, output_array, x, labels_array, x, dec_array)
+                plt.legend(["pred", "real data", "dec_input"])
+                plt.show()
+                plt.plot(x, output_array, x, labels_array)
+                plt.legend(["pred", "real data"])
+                plt.show()
+                plt.plot(x, output_array, x, dec_array)
+                plt.legend(["pred",  "dec_input"])
+                plt.show()
+            else:
+                plt.plot(x, output_array, x, labels_array)
+                plt.legend(["pred", "real data", "dec_input"])
+                # plt.title("90 minutes in 24-01-2020")
+                # plt.title("Prediction from {} to {}".format(start, end))
+                plt.show()
+
+
+def real_index(index):
+    return int(index / 5)
 
 
 if __name__ == "__main__":
-    plot_pred(start=760, end=850)
+    plot_pred(start=760, end=850, dec_out=True)
