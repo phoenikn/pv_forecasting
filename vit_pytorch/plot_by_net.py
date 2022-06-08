@@ -16,18 +16,21 @@ ABSOLUTE_IMG_DIR_2 = "C:/Users/s4544852/Desktop/gatton PV data/Gatton 2/2020"
 ABSOLUTE_INDEX_DIR = "C:/Users/s4544852/Desktop/gatton PV data/index_2020"
 
 BATCH_SIZE = 1
-
+OUTPUT_LENGTH = 1
 DATASET_ARG = {
-    "index_path": path_join(ABSOLUTE_INDEX_DIR, "data_2020_interval.csv"),
+    "index_path": path_join(ABSOLUTE_INDEX_DIR, "data_2020_diff.csv"),
     "images_folder": ABSOLUTE_IMG_DIR_1,
-    "interval": 2,
+    "interval": 5,
+    "output_length": OUTPUT_LENGTH,
+    "mode": "",
+    "input_length": 4,
 }
 
 
-def plot_pred(start=0, end=1000, dec_out=False):
-    start = real_index(start)
-    end = real_index(end)
-    if os.path.exists("VIT_original.pth"):
+def plot_pred(start=0, end=1000, dec_out=False, output_length=OUTPUT_LENGTH):
+    start = real_index(start, 1)
+    end = real_index(end, 1)
+    if os.path.exists("VIT.pth"):
         with torch.no_grad():
             # model = ViT(
             #     image_size=256,
@@ -41,29 +44,34 @@ def plot_pred(start=0, end=1000, dec_out=False):
             #     dropout=0.1,
             #     emb_dropout=0.1
             # )
-            model = TimeVIT()
+            model = TimeVIT(num_min=4)
             device = torch.device("cpu")
             dataset = RawSkyImageDataset(**DATASET_ARG)
             data_loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
-            model.load_state_dict(torch.load("VIT_original.pth", map_location=device))
+            model.load_state_dict(torch.load("VIT.pth", map_location=device))
             model.eval()
-            x = range(start * 5, end * 5)
+            x = range(start * output_length, end * output_length)
+            # x = range(start, end)
             output_array = numpy.array([])
             labels_array = numpy.array([])
             dec_array = numpy.array([])
+            historical_array = numpy.array([])
             for i in range(start, end):
                 data = data_loader.dataset.__getitem__(i)
-                inputs, labels, dec_input, historical = data
+                inputs, labels, historical = data
                 inputs = inputs.float()
                 historical = np.array(historical)
-                dec_input = np.array(dec_input)
-                dec_array = np.append(dec_array, dec_input)
+                # dec_input = np.array(dec_input)
+                # dec_array = np.append(dec_array, dec_input)
+                historical_array = np.append(historical_array, historical)
                 historical = torch.from_numpy(historical).float()
-                dec_input = torch.from_numpy(dec_input).float()
-                dec_input = torch.cat((dec_input[:, None], torch.zeros(dec_input.size() + (1023,)).to(device)), 1)
-                outputs = model(torch.unsqueeze(inputs, 0), torch.unsqueeze(dec_input, 0),
-                                torch.unsqueeze(historical, 0))
-                output_array = np.concatenate((output_array, outputs.squeeze().numpy()))
+                # dec_input = torch.from_numpy(dec_input).float()
+                # dec_input = torch.cat((dec_input[:, None], torch.zeros(dec_input.size() + (1023,)).to(device)), 1)
+                # zero_dec_input = torch.zeros((1, 30, 1024)).to(device)
+                outputs = model(torch.unsqueeze(inputs, 0),
+                                torch.unsqueeze(torch.unsqueeze(historical, 1), 0))
+                print(outputs)
+                output_array = np.concatenate((output_array, outputs[0].numpy()))
                 labels_array = np.append(labels_array, labels)
                 # if len(output_array) >= end:
                 #     output_array = output_array[start: end]
@@ -71,26 +79,29 @@ def plot_pred(start=0, end=1000, dec_out=False):
                 #     break
 
             if dec_out:
-                plt.plot(x, output_array, x, labels_array, x, dec_array)
-                plt.legend(["pred", "real data", "dec_input"])
+                historical_array = np.repeat(historical_array, 5)
+                plt.plot(x, output_array, x, labels_array, x, historical_array)
+                plt.legend(["pred", "real data", "historical"])
                 plt.show()
                 plt.plot(x, output_array, x, labels_array)
                 plt.legend(["pred", "real data"])
                 plt.show()
-                plt.plot(x, output_array, x, dec_array)
-                plt.legend(["pred",  "dec_input"])
+                plt.plot(x, output_array, x, historical_array)
+                plt.legend(["pred",  "historical"])
                 plt.show()
             else:
                 plt.plot(x, output_array, x, labels_array)
-                plt.legend(["pred", "real data", "dec_input"])
+                plt.legend(["pred", "real data"])
                 # plt.title("90 minutes in 24-01-2020")
-                # plt.title("Prediction from {} to {}".format(start, end))
+                plt.title("Prediction from {} to {}".format(start, end))
                 plt.show()
+    else:
+        raise Exception("No saved model!")
 
 
-def real_index(index):
-    return int(index / 5)
+def real_index(index, slip_step):
+    return int(index / slip_step)
 
 
 if __name__ == "__main__":
-    plot_pred(start=760, end=850, dec_out=True)
+    plot_pred(start=4100, end=4900, dec_out=False, output_length=1)

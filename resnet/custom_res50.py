@@ -9,6 +9,6 @@ def resnet50(input_stack_amount: int):
 
     fc_features = model.fc.in_features
 
-    model.fc = nn.Linear(fc_features, 1)
+    model.fc = nn.Linear(fc_features, 1024)
 
     return model

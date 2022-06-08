@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from matplotlib import pyplot as plt
+from sklearn import preprocessing
 
 ABSOLUTE_FILE_DIR = "C:/Users/s4544852/Desktop/gatton PV data/Data for CSIRO/2020"
 ABSOLUTE_IMG_DIR_1 = "C:/Users/s4544852/Desktop/gatton PV data/Gatton 1/2020"
@@ -31,12 +32,25 @@ def align_with_interval(output_name="data_2020_interval", file_name="data_2020.c
                         file_dir=ABSOLUTE_FILE_DIR, index_dir=ABSOLUTE_INDEX_DIR):
     data = pd.read_csv(os.path.join(file_dir, file_name))
     output_col = data["Power(kW)"]
-    for i in range(-1, -6, -1):
+    for i in range(-1, -11, -1):
         shifted = output_col.shift(periods=i)
         data["interval_{}".format(-i)] = shifted
     data.dropna(inplace=True)
     data.to_csv(os.path.join(index_dir, output_name + ".csv"), index=False)
     data.to_csv(os.path.join(file_dir, output_name + ".csv"), index=False)
+
+
+def add_diff_column(output_name="data_2020_diff", file_name="data_2020_interval.csv",
+                    file_dir=ABSOLUTE_FILE_DIR, index_dir=ABSOLUTE_INDEX_DIR):
+    data = pd.read_csv(os.path.join(file_dir, file_name))
+    pre_diff_col = data.iloc[:, -2] - data.iloc[:, -3]
+    diff_col = data.iloc[:, -1] - data.iloc[:, -2]
+    pre_diff_col = preprocessing.MaxAbsScaler().fit_transform(pre_diff_col.to_frame())
+    diff_col = preprocessing.MaxAbsScaler().fit_transform(diff_col.to_frame())
+    data["last_diff"] = pre_diff_col
+    data["diff"] = diff_col
+    # data.to_csv(os.path.join(index_dir, output_name + ".csv"), index=False)
+    # data.to_csv(os.path.join(file_dir, output_name + ".csv"), index=False)
 
 
 if __name__ == "__main__":
@@ -45,4 +59,5 @@ if __name__ == "__main__":
     # plt.plot(data_all["Power(kW)"][0:10000])
     # plt.show()
     # align_with_interval()
+    # add_diff_column()
     pass
