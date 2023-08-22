@@ -196,18 +196,29 @@ class ConvLSTMOut(nn.Module):
         super(ConvLSTMOut, self).__init__()
         self.lstm = ConvLSTM(**lstm_arg)
         lstm_out_channel = self.lstm.hidden_dim[0]
-        self.conv = nn.Conv2d(in_channels=time_step * lstm_out_channel, out_channels=1, kernel_size=(5, 5))
-        self.fc1 = nn.Linear(129600, 1000)
+        self.conv = nn.Conv2d(in_channels=lstm_arg["hidden_dim"][-1], out_channels=1, kernel_size=(5, 5))
+        self.fc1 = nn.Linear(63504, 1000)
         self.fc2 = nn.Linear(1000, 1)
 
     def forward(self, input_tensor):
         out, hidden = self.lstm(input_tensor)
         # Get the last hidden state
-        x = out[0]
-        x = x.flatten(1, 2)
+        x = hidden[0][0]
         x = self.conv(x)
         x = torch.flatten(x, 1)
-        x = self.fc1(x)
+        x = torch.relu(self.fc1(x))
         x = self.fc2(x)
 
         return x
+
+if __name__ == "__main__":
+    model = ConvLSTMOut(5, {
+        "input_dim": 3,
+        "hidden_dim": [4, 4],
+        "kernel_size": (3, 3),
+        "num_layers": 2,
+        "batch_first": True,
+        "bias": True,
+        "return_all_layers": False
+    })
+    model(torch.rand([8, 30, 3, 256, 256]))

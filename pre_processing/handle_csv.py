@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 def concat_pv_csv(data_directory_):
     csv_out = None
     for filename in os.listdir(data_directory_):
-        pv_csv = pd.read_csv(os.path.join(data_directory_, filename))
+        pv_csv = pd.read_csv(os.path.join(data_directory_, filename, "AQG1_B001_PM001.Sts.P_kW.csv"))
         if csv_out is None:
             csv_out = pv_csv
         else:
@@ -15,7 +15,7 @@ def concat_pv_csv(data_directory_):
             csv_out = pd.concat([csv_out, pv_csv])
 
     csv_out.rename(columns={"AQG1_B001_PM001.Sts.P_kW": "Power(kW)"}, inplace=True)
-    csv_out.to_csv(os.path.join(data_directory_, "raw_all_data.csv"), index=False)
+    csv_out.to_csv(os.path.join(data_directory_, "PV_2019.csv"), index=False)
 
 
 def select_data_with_img(img_names_dir_, formatted_data_dir_, data_dir_):
@@ -146,6 +146,11 @@ def csv_time_format_change(raw_data_dir_, data_folder_dir_, name="right_time_dat
 
 
 if __name__ == "__main__":
+    csv = pd.read_csv(r"C:\Users\s4544852\Desktop\kaggle competition\pv_output.csv")
+    csv["Power(kW)"]=0
+    print(csv["Power(kW)"])
+    csv.to_csv(r"C:\Users\s4544852\Desktop\kaggle competition\pv_sandsample.csv", index=False)
+    # csv.to_csv(r"C:\Users\s4544852\Desktop\gatton PV data\Data for CSIRO\2019\sample.csv", index=False)
     # data_directory = "../pv_data"
     # img_directory = "../sky_image"
     # raw_data_dir = "../pv_data/raw_all_data.csv"
@@ -163,10 +168,10 @@ if __name__ == "__main__":
     #
     # extract_img_names(ABSOLUTE_IMG_DIR_1, ABSOLUTE_INDEX_DIR, name="img_names_2020.csv")
 
-    ABSOLUTE_INDEX_DIR = "/scratch/itee/uqsxu13/2020_data/2020_index/img_names.csv"
-    ABSOLUTE_IMG_DIR_1 = "/scratch/itee/uqsxu13/2020_data/2020_gatton_1"
-
-    extract_img_names(ABSOLUTE_IMG_DIR_1, "/scratch/itee/uqsxu13/2020_data/2020_index/")
+    # ABSOLUTE_INDEX_DIR = "/scratch/itee/uqsxu13/2020_data/2020_index/img_names.csv"
+    # ABSOLUTE_IMG_DIR_1 = "/scratch/itee/uqsxu13/2020_data/2020_gatton_1"
+    #
+    # extract_img_names(ABSOLUTE_IMG_DIR_1, "/scratch/itee/uqsxu13/2020_data/2020_index/")
     # round_img_name(ABSOLUTE_INDEX_DIR, ABSOLUTE_IMG_DIR_1, None)
 
     # select_data_with_img(img_names_dir, formatted_data_dir, data_directory)

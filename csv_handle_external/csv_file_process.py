@@ -32,7 +32,7 @@ def align_with_interval(output_name="data_2020_interval", file_name="data_2020.c
                         file_dir=ABSOLUTE_FILE_DIR, index_dir=ABSOLUTE_INDEX_DIR):
     data = pd.read_csv(os.path.join(file_dir, file_name))
     output_col = data["Power(kW)"]
-    for i in range(-1, -11, -1):
+    for i in range(-1, -21, -1):
         shifted = output_col.shift(periods=i)
         data["interval_{}".format(-i)] = shifted
     data.dropna(inplace=True)
@@ -58,6 +58,6 @@ if __name__ == "__main__":
     # data_all = pd.read_csv(os.path.join(ABSOLUTE_FILE_DIR, "data_2020_interval.csv"))
     # plt.plot(data_all["Power(kW)"][0:10000])
     # plt.show()
-    # align_with_interval()
+    align_with_interval()
     # add_diff_column()
     pass

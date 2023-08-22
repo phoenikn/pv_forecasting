@@ -1,3 +1,4 @@
+import os
 import time
 
 import torch
@@ -165,52 +166,30 @@ class TimeVIT(nn.Module):
         super().__init__()
         self.num_img = num_min * 6
         self.num_min = num_min
+        self.conv_before = nn.Conv2d(3, 3, (3, 3), (1, 1))
         self.vit = ViT(
             image_size=256,
-            patch_size=32,
+            patch_size=16,
             num_classes=256,
             dim=1024,
             depth=4,
             heads=4,
             mlp_dim=2048,
             channels=3,
-            dropout=0.1,
-            emb_dropout=0.1
+            dropout=0.25 if os.name == "nt" else 0.1,
+            emb_dropout=0.25 if os.name == "nt" else 0.1
         )
-        # self.conv1 = nn.Conv2d(3, 5, (3, 3))
-        # self.conv2 = nn.Conv2d(5, 10, (3, 3))
-        # self.conv3 = nn.Conv2d(10, 16, (3, 3), (2, 2))
-        # self.encoder_layer = nn.TransformerEncoderLayer(d_model=1024, nhead=8, batch_first=True)
-        # self.transformer_encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=4)
-        # self.decoder_layer = nn.TransformerDecoderLayer(d_model=1024, nhead=8, batch_first=True)
-        # self.transformer_decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=4)
-        # self.transformer = nn.Transformer(1024, 8, 4, 4, 2048, batch_first=True, dropout=0.1)
-        # self.rnn1 = nn.GRU(input_size=256, hidden_size=256, num_layers=6, batch_first=True)
-        # self.rnn2 = nn.GRU(input_size=1, hidden_size=16, num_layers=4, batch_first=True)
-        # self.after_lstm2 = nn.Linear(16, 1)
-        # self.layer_norm = nn.LayerNorm(1024)
-        # self.fc_before = nn.Linear(30 * 1024, 16 * 512)
-        self.conv1 = nn.Conv1d(256, 128, (2,))
-        self.conv2 = nn.Conv1d(128, 128, (2,))
-        self.conv3 = nn.Conv1d(128, 128, (2,))
-        self.conv4 = nn.Conv1d(128, 128, (2,))
-        self.fc1 = nn.Linear((self.num_img - 4) * 128, 2048)
-        self.fc2 = nn.Linear(2048, 1024)
-        self.fc3 = nn.Linear(1024, 1024)
-        self.fc4 = nn.Linear(1024, 1024)
-        self.fc5 = nn.Linear(1024, 64)
-        self.fc6 = nn.Linear(64, 64)
-        self.fc7 = nn.Linear(64, 64)
-        self.fc8 = nn.Linear(64, 1)
+
+        # ------------RNN Part----------------------------------------------
+        self.rnn_encoder = nn.GRU(input_size=256, hidden_size=256, num_layers=4, batch_first=True)
+
+        # ------------Linear Layers Part (RNN)----------------------------------------------
+        self.fc1 = nn.Linear(4 * 256, 256)
+        self.fc2 = nn.Linear(256 + 4, 1)
+
+        # ------------Batch norm Part----------------------------------------------
+
         self.batch_norm1 = nn.BatchNorm2d(3)
-        self.batch_norm2 = nn.BatchNorm1d(128)
-        self.batch_norm3 = nn.BatchNorm1d(128)
-        self.batch_norm4 = nn.BatchNorm1d(128)
-        self.batch_norm5 = nn.BatchNorm1d(128)
-        # self.batch_norm2 = nn.BatchNorm1d(self.num_img)
-        # self.resnet = resnet50(3)
-        # self.batch_norm = nn.BatchNorm3d(self.num_img)
-        # self.decoder = nn.GRU(1, 30, batch_first=True)
 
     def linear_residual1(self, x):
         residual = x
@@ -222,57 +201,33 @@ class TimeVIT(nn.Module):
 
     def linear_residual2(self, x, historical):
         residual = x
-        x = x + historical
+        x = torch.cat([x, historical], dim=-1)
         x = F.relu(self.fc6(x))
         x = F.relu(self.fc7(x))
         x = x + residual
 
         return F.relu(x)
 
-    def forward(self, x, historical):
+    def forward(self, x, exogenous):
         x = rearrange(x, "b i c h w -> (b i) c h w")
+        x = self.conv_before(x)
         x = self.batch_norm1(x)
         x = self.vit(x)
-
         # split to batch * image_num * feature_dim
-        x = rearrange(x, "(b i) d -> b d i", i=self.num_img)
+        x = rearrange(x, "(b i) d -> b i d", i=self.num_img)
+        # x = rearrange(x, "(b i) d -> b d i", i=self.num_img)
 
-        # x = self.batch_norm2(x)
+        # -----------------------------RNN Forward----------------------------------------------
+        _, x = self.rnn_encoder(x)
+        x = rearrange(x, "l b h -> b l h")
+        x = torch.flatten(x, 1)
 
-        # _, x = self.rnn1(x)
-        # x = rearrange(x, "l b h -> b l h")
-        # x = torch.flatten(x, 1)
-        x = self.conv1(x)
-        x = self.batch_norm2(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = self.batch_norm3(x)
-        x = F.relu(x)
-        x = self.conv3(x)
-        x = self.batch_norm4(x)
-        x = F.relu(x)
-        x = self.conv4(x)
-        x = self.batch_norm5(x)
-        x = F.relu(x)
-        x = rearrange(x, "b d c -> b c d")
-        x = rearrange(x, "b c d -> b (c d)")
-
-        x = F.relu(x)
+        # -----------------------------Linear Layers Forward----------------------------------------------
+        x = F.relu(x, inplace=True)
         x = self.fc1(x)
-        x = F.relu(x)
+        x = F.relu(x, inplace=True)
+        x = torch.cat([x, exogenous], 1)
         x = self.fc2(x)
-        x = F.relu(x)
-        x = self.linear_residual1(x)
-        x = self.linear_residual1(x)
-        x = self.fc5(x)
 
-        # _, historical = self.rnn2(historical)
-        # historical = rearrange(historical, "l b h -> b l h")
-        # historical = torch.flatten(historical, 1)
-        #
-        # x = self.linear_residual2(x, historical)
-        # x = self.linear_residual2(x, historical)
-
-        x = self.fc8(x)
 
         return x
